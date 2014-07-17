@@ -128,9 +128,9 @@ if __name__ == "__main__":
             help="log to stdout")
     parser.add_argument("-L", "--syslog",
             metavar="ident",
+            dest="syslog_ident",
             nargs="?",
-            const="ddns_updater",
-            help="log to syslog (ident defaults to ddns_updater)")
+            help="log to syslog (ident defaults to ddns_<provider>)")
     args = parser.parse_args(sys.argv[1:])
     try:
         name = sys.argv[1]
@@ -143,8 +143,10 @@ if __name__ == "__main__":
                         "https://pygodaddy.readthedocs.org/"
                 print >> sys.stderr, msg
                 raise DDNSError(msg)
-            provider = GoDaddy(logging=args.logging,
-                    syslog_ident=args.syslog)
+            ident = args.syslog_ident
+            if not ident:
+                ident = "ddns_" + args.provider
+            provider = GoDaddy(logging=args.logging, syslog_ident=ident)
         if not provider:
             msg = "unknown dns provider: " + name
             print >> sys.stderr, msg
