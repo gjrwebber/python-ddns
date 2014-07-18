@@ -1,3 +1,22 @@
+"""
+
+to run from the commandline:
+
+  python -m pyfooware.ddns godaddy
+
+run with -h for a list of options
+
+
+to update GoDaddy DNS, first create the file $HOME/.godaddyrc with the
+following three properties:
+
+    username=myuser
+    password=mypass
+    domains=domain1.com,domain2.org
+
+
+"""
+
 import network
 import os.path
 import sys
@@ -40,13 +59,6 @@ class DNSProvider(object):
 
 
 class GoDaddy(DNSProvider):
-    """
-    sample ~/.godaddyrc
-
-    username=myuser
-    password=mypass
-    domains=domain1.com,domain2.org
-    """
 
     def __init__(self, config_path=None, logging=False, syslog_ident=None):
         DNSProvider.__init__(self, logging, syslog_ident)
