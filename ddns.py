@@ -75,6 +75,7 @@ class GoDaddy(DNSProvider):
             raise DDNSError(msg)
         except Exception as e:
             msg =  "error reading %s (%s)" % (self.config_path, `e`)
+            self.error(msg)
             raise DDNSError(msg, e)
         self.username = props.get("username", None)
         if not self.username:
@@ -153,4 +154,5 @@ if __name__ == "__main__":
             raise DDNSError(msg)
         provider.update()
     except DDNSError as e:
+        print "fatal error:", e
         sys.exit(1)
