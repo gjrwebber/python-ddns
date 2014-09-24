@@ -136,6 +136,98 @@ class GoDaddy(DNSProvider):
                     raise DDNSError(msg)
 
 
+class CloudFlareProvider(DNSProvider):
+
+    def __init__(self, config_path=None, logging=False, syslog_ident=None):
+        DNSProvider.__init__(self, logging, syslog_ident)
+        self.config_path = config_path
+        if not self.config_path:
+            self.config_path = os.path.expanduser("~/.cloudflarerc")
+        self._init_from_config()
+
+    def _init_from_config(self):
+        props = {}
+        lnbr = 0
+        try:
+            for line in open(self.config_path):
+                lnbr += 1
+                line = line.strip()
+                i = line.find("#")
+                if i >= 0:
+                    line = line[:i]
+                if not line:
+                    continue
+                name, value = line.split("=")
+                props[name] = value
+        except ValueError as e:
+            msg = "invalid config value [line %s]: %s" % (lnbr, line)
+            self.error(msg)
+            raise DDNSError(msg)
+        except Exception as e:
+            msg =  "error reading %s (%s)" % (self.config_path, `e`)
+            self.error(msg)
+            raise DDNSError(msg, e)
+        self.email = props.get("email", None)
+        if not self.email:
+            msg = "no cloudflare email configured"
+            self.error(msg)
+            raise DDNSError(msg)
+        self.key = props.get("key", None)
+        if not self.key:
+            msg = "no cloudflare key configured"
+            self.error(msg)
+            raise DDNSError(msg)
+        self.domains = filter(lambda d: d != '',
+                props.get("domains", "").split(","))
+        if not self.domains:
+            msg = "no cloudflare domains not configured"
+            self.error(msg)
+            raise DDNSError(msg)
+
+    def update(self):
+        wan_ip = network.Network().get_wan_ip()
+        self.log("router wan ip is " + wan_ip)
+        cfapi = None
+        try:
+            cfapi = CloudFlare(self.email, self.key)
+            self.log("logged into cloudflare with %s using %s" % (self.email, self.key))
+        except Exception, e:
+            msg = "could not login to cloudflare with %s using %s" % (self.email, self.key)
+            self.error(msg)
+            raise DDNSError(msg)
+
+        for domain in self.domains:
+            self.log("Checking domain %s" % domain)
+            response = cfapi.rec_load_all(domain)
+            if not response['result'] == "success":
+                msg = "failed to load dns records for %s. Msg: %s" % (domain, response['msg'])
+                self.error(msg)
+                raise DDNSError(msg)
+            if response['response']['recs']['count'] > 0:
+                for rec in response['response']['recs']['objs']:
+                    try:
+                        if not rec['type'] == "A":
+                            continue
+                        if rec['content'] == wan_ip:
+                            self.log("%s: already set to %s" % (domain, wan_ip))
+                            continue
+                        self.log("%s: updating from %s to %s" %
+                                (domain, rec['content'], wan_ip))
+
+                    except Exception, e:
+                        msg = "could not interpret cloudflare response\n%s\n" % rec
+                        self.error(msg)
+                        raise DDNSError(msg)
+
+                    response = cfapi.rec_edit(domain, "A", rec['rec_id'], rec['display_name'], wan_ip)
+
+                    if not response['result'] == "success":
+                        msg = "failed to update %s dns record. Msg: %s" % (domain, response['msg'])
+                        self.error(msg)
+                        raise DDNSError(msg)
+
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -167,6 +259,25 @@ if __name__ == "__main__":
             if not ident:
                 ident = "ddns_" + args.provider
             provider = GoDaddy(logging=args.logging, syslog_ident=ident)
+
+        if name == "cloudflare":
+            try:
+                from cloudflare import CloudFlare
+            except ImportError as e:
+                msg = "cloudflare module not found: " + \
+                        "https://github.com/kayteh/python-cloudflare"
+                print >> sys.stderr, msg
+                raise DDNSError(msg)
+            try:
+                import json
+            except ImportError as e:
+                msg = "json module not found"
+                print >> sys.stderr, msg
+                raise DDNSError(msg)
+            ident = args.syslog_ident
+            if not ident:
+                ident = "ddns_" + args.provider
+            provider = CloudFlareProvider(logging=args.logging, syslog_ident=ident)
         if not provider:
             msg = "unknown dns provider: " + name
             print >> sys.stderr, msg
