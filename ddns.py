@@ -243,6 +243,10 @@ if __name__ == "__main__":
             dest="syslog_ident",
             nargs="?",
             help="log to syslog (ident defaults to ddns_<provider>)")
+    parser.add_argument("-c", "--confpath",
+            metavar="config",
+            dest="config_path",
+            help="path to config file")
     args = parser.parse_args(sys.argv[1:])
     try:
         name = sys.argv[1]
@@ -277,7 +281,7 @@ if __name__ == "__main__":
             ident = args.syslog_ident
             if not ident:
                 ident = "ddns_" + args.provider
-            provider = CloudFlareProvider(logging=args.logging, syslog_ident=ident)
+            provider = CloudFlareProvider(config_path=args.config_path, logging=args.logging, syslog_ident=ident)
         if not provider:
             msg = "unknown dns provider: " + name
             print >> sys.stderr, msg
