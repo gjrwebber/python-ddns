@@ -43,36 +43,16 @@ class DDNSError(Exception):
 
 class DNSProvider(object):
 
-    def __init__(self, logging, syslog_ident):
+    def __init__(self, config_path=None, logging=False, syslog_ident=None):
         self.logging_on = logging
         self.syslogging_on = bool(syslog_ident)
         if syslog_ident:
             syslog.openlog(syslog_ident, facility=syslog.LOG_USER)
-
-    def update(self):
-        pass
-
-    def log(self, message):
-        if self.logging_on:
-            print message
-        if self.syslogging_on:
-            syslog.syslog(syslog.LOG_ALERT, message)
-
-    def error(self, message):
-        if self.logging_on:
-            print >> sys.stderr, message
-        if self.syslogging_on:
-            syslog.syslog(syslog.LOG_ALERT, message)
-
-
-class GoDaddy(DNSProvider):
-
-    def __init__(self, config_path=None, logging=False, syslog_ident=None):
-        DNSProvider.__init__(self, logging, syslog_ident)
         self.config_path = config_path
         if not self.config_path:
-            self.config_path = os.path.expanduser("~/.godaddyrc")
+            self.config_path = os.path.expanduser("~/.pyddnsrc")
         self._init_from_config()
+        self.validate()
 
     def _init_from_config(self):
         props = {}
@@ -98,26 +78,47 @@ class GoDaddy(DNSProvider):
             raise DDNSError(msg, e)
         self.username = props.get("username", None)
         if not self.username:
-            msg = "no godaddy username configured"
+            msg = "no username configured"
             self.error(msg)
             raise DDNSError(msg)
-        self.password = props.get("password", None)
-        if not self.password:
-            msg = "no godaddy password configured"
+        self.key = props.get("key", None)
+        if not self.key:
+            msg = "no key configured"
             self.error(msg)
             raise DDNSError(msg)
         self.domains = filter(lambda d: d != '',
                 props.get("domains", "").split(","))
         if not self.domains:
-            msg = "no godaddy domains not configured"
+            msg = "no domains configured"
             self.error(msg)
             raise DDNSError(msg)
+
+    def validate(self):
+        pass
+
+    def update(self):
+        pass
+
+    def log(self, message):
+        if self.logging_on:
+            print message
+        if self.syslogging_on:
+            syslog.syslog(syslog.LOG_ALERT, message)
+
+    def error(self, message):
+        if self.logging_on:
+            print >> sys.stderr, message
+        if self.syslogging_on:
+            syslog.syslog(syslog.LOG_ALERT, message)
+
+
+class GoDaddy(DNSProvider):
 
     def update(self):
         wan_ip = network.Network().get_wan_ip()
         self.log("router wan ip is " + wan_ip)
         godaddy = pygodaddy.GoDaddyClient()
-        if not godaddy.login(self.username, self.password):
+        if not godaddy.login(self.username, self.key):
             msg = "godaddy login failure for " + self.username
             self.error(msg)
             raise DDNSError(msg)
@@ -137,52 +138,6 @@ class GoDaddy(DNSProvider):
 
 
 class CloudFlareProvider(DNSProvider):
-
-    def __init__(self, config_path=None, logging=False, syslog_ident=None):
-        DNSProvider.__init__(self, logging, syslog_ident)
-        self.config_path = config_path
-        if not self.config_path:
-            self.config_path = os.path.expanduser("~/.cloudflarerc")
-        self._init_from_config()
-
-    def _init_from_config(self):
-        props = {}
-        lnbr = 0
-        try:
-            for line in open(self.config_path):
-                lnbr += 1
-                line = line.strip()
-                i = line.find("#")
-                if i >= 0:
-                    line = line[:i]
-                if not line:
-                    continue
-                name, value = line.split("=")
-                props[name] = value
-        except ValueError as e:
-            msg = "invalid config value [line %s]: %s" % (lnbr, line)
-            self.error(msg)
-            raise DDNSError(msg)
-        except Exception as e:
-            msg =  "error reading %s (%s)" % (self.config_path, `e`)
-            self.error(msg)
-            raise DDNSError(msg, e)
-        self.email = props.get("email", None)
-        if not self.email:
-            msg = "no cloudflare email configured"
-            self.error(msg)
-            raise DDNSError(msg)
-        self.key = props.get("key", None)
-        if not self.key:
-            msg = "no cloudflare key configured"
-            self.error(msg)
-            raise DDNSError(msg)
-        self.domains = filter(lambda d: d != '',
-                props.get("domains", "").split(","))
-        if not self.domains:
-            msg = "no cloudflare domains not configured"
-            self.error(msg)
-            raise DDNSError(msg)
 
     def update(self):
         wan_ip = network.Network().get_wan_ip()
