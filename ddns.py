@@ -2,25 +2,35 @@
 
 General help:
 
-to run from the commandline:
+    You need to create a config file ~/.pyddnsrc with the following three
+    properties:
 
-  python -m pyfooware.ddns godaddy
+        username=myuser
+        key=mykey 
+        domains=domain1.com,domain2.com
 
-run with -h for a list of options
+    CloudFlare
+        username is your login email
+        key is the developer key
+        domains is the list of domains you want updated
 
+    GoDaddy
+        username is your login username
+        key is your login password
+        domains is the list of domains you want updated
 
-GoDaddy help:
+    Running
+        to run from the commandline:
 
-to update GoDaddy DNS, first create the file $HOME/.godaddyrc with the
-following three properties:
+            python -m pyfooware.ddns <cloudflare|godaddy> -[lLh]
 
-    username=myuser
-    password=mypass
-    domains=domain1.com,domain2.org
+        run with -h for a list of options
 
-the following updates GoDaddy and logs output to syslog (good for cron)
+        Example
 
-  python -m pyfooware.ddns godaddy -L
+            the following updates GoDaddy and logs output to syslog (good for cron)
+
+            python -m pyfooware.ddns godaddy -L
 
 """
 
@@ -188,7 +198,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("provider",
             metavar="name",
-            help="dns provider name")
+            help="dns provider name [cloudflare|godaddy]")
     parser.add_argument("-l", "--log",
             dest="logging",
             action="store_true",
