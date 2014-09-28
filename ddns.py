@@ -154,10 +154,10 @@ class CloudFlareProvider(DNSProvider):
         self.log("router wan ip is " + wan_ip)
         cfapi = None
         try:
-            cfapi = CloudFlare(self.email, self.key)
-            self.log("logged into cloudflare with %s using %s" % (self.email, self.key))
+            cfapi = CloudFlare(self.username, self.key)
+            self.log("logged into cloudflare with %s using %s" % (self.username, self.key))
         except Exception, e:
-            msg = "could not login to cloudflare with %s using %s" % (self.email, self.key)
+            msg = "could not login to cloudflare with %s using %s" % (self.username, self.key)
             self.error(msg)
             raise DDNSError(msg)
 
